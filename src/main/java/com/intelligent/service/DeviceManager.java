@@ -11,10 +11,15 @@ public class DeviceManager {
         this.driver = UsbBridge.INSTANCE;
     }
 
-    public boolean connect(int vid, int pid) {
-        System.out.println("[Manager] Connecting to Device (VID: " + Integer.toHexString(vid) + ")...");
-        int result = driver.connect_physical_device(vid, pid);
+    public boolean connect(int vid, int pid, int interfaceIdx) {
+        System.out.println("[Manager] Connecting to Device (VID: " + Integer.toHexString(vid) + " Interface: "
+                + interfaceIdx + ")...");
+        int result = driver.connect_physical_device(vid, pid, interfaceIdx);
         return result == 1;
+    }
+
+    public void disconnect() {
+        driver.close_device();
     }
 
     public boolean sendPacket(byte[] data, DeviceStatus status) {

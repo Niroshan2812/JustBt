@@ -26,7 +26,9 @@ public interface UsbBridge extends Library {
     }
 
     // --- Native Functions ---
-    int connect_physical_device(int vid, int pid);
+    int connect_physical_device(int vid, int pid, int interface_idx);
+
+    void close_device();
 
     void send_raw_packet(byte[] data, int length, DeviceStatus status);
 

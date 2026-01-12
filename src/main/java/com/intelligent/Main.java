@@ -13,14 +13,37 @@ public class Main {
 
         // PID 6860 is Samsung Normal Mode
         // VID 0x04E8 = Samsung
-        if (manager.connect(0x04E8, 0x6860)) {
-            System.out.println("[Main] Device Connected!");
+        boolean found = false;
 
-            // Execute the Protocol Logic
-            samsung.performModemHandshake(manager);
+        System.out.println("[Main] Starting Interface Scan (Looking for Modem)...");
 
-        } else {
-            System.out.println("[Main] Device not found. Check Zadig Driver.");
+        for (int i = 0; i < 4; i++) {
+            System.out.println("\n[Main] Trying Interface " + i + "...");
+
+            if (manager.connect(0x04E8, 0x6860, i)) {
+                System.out.println("[Main] Interface " + i + " Connected. Testing Protocol...");
+
+                // Execute the Protocol Logic
+                if (samsung.performModemHandshake(manager)) {
+                    System.out.println("\n[Main] >>> FOUND CORRECT MODEM INTERFACE: " + i + " <<<");
+                    found = true;
+
+                    // --- PHASE 8: READ INFO ---
+                    samsung.readDeviceInfo(manager);
+
+                    // Keep connection open or do further work here
+                    break;
+                } else {
+                    System.out.println("[Main] Handshake Failed on Interface " + i + ". Disconnecting...");
+                    manager.disconnect();
+                }
+            } else {
+                System.out.println("[Main] Failed to claim Interface " + i);
+            }
+        }
+
+        if (!found) {
+            System.out.println("\n[Main] Scan Complete. No responsive Modem interface found.");
         }
 
         System.out.println("=== End of Operation ===");

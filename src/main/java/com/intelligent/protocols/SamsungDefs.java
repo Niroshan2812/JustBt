@@ -6,6 +6,8 @@ public class SamsungDefs {
     public static final byte[] CMD_AT_HELLO = "AT\r".getBytes();
     public static final byte[] CMD_READ_IMEI = "AT+CGSN\r".getBytes();
     public static final byte[] CMD_READ_MODEL = "AT+GMM\r".getBytes();
+    public static final byte[] CMD_READ_BATTERY = "AT+CBC\r".getBytes();
+    public static final byte[] CMD_READ_VERSION = "AT+CGMR\r".getBytes();
 
     // 2. Download Mode Commands (Hex)
     // Used when phone is in "Odin Mode" (Blue Screen)

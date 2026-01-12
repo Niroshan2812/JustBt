@@ -15,14 +15,22 @@ extern "C" {
     libusb_device_handle *dev_handle = NULL;
     unsigned char bulk_out_endpoint = 0;
     unsigned char bulk_in_endpoint = 0;
+    int claimed_interface = -1;
+    libusb_context *ctx = NULL;
 
-    __declspec(dllexport) int connect_physical_device(int vid, int pid) {
-        // 1. Initialize the Library
-        libusb_context *ctx = NULL;
-        int r = libusb_init(&ctx);
-        if(r < 0) {
-            std::cout << "[C++ Real] Init Error: " << r << std::endl;
-            return -1;
+    __declspec(dllexport) int connect_physical_device(int vid, int pid, int interface_idx) {
+        // Reset globals just in case
+        bulk_out_endpoint = 0;
+        bulk_in_endpoint = 0;
+        claimed_interface = -1;
+
+        // 1. Initialize the Library (if not already)
+        if (ctx == NULL) {
+            int r = libusb_init(&ctx);
+            if(r < 0) {
+                std::cout << "[C++ Real] Init Error: " << r << std::endl;
+                return -1;
+            }
         }
 
         // 2. Open the Device physically
@@ -33,60 +41,72 @@ extern "C" {
             return 0; // Fail
         }
 
-        std::cout << "[C++ Real] HARDWARE LINK ESTABLISHED (VID: " << std::hex << vid << " PID: " << pid << ")" << std::endl;
+        std::cout << "[C++ Real] Checking Interface " << interface_idx << "..." << std::endl;
 
-        // 3. Auto-Detect Endpoints AND Interface
+        // 3. Inspect the SPECIFIC Interface
         libusb_device *dev = libusb_get_device(dev_handle);
         libusb_config_descriptor *config;
         libusb_get_active_config_descriptor(dev, &config);
 
-        int target_interface = -1;
+        if (interface_idx >= config->bNumInterfaces) {
+            std::cout << "[C++ Real] Interface " << interface_idx << " does not exist." << std::endl;
+            libusb_close(dev_handle);
+            dev_handle = NULL;
+            return 0;
+        }
 
-        std::cout << "[C++ Real] Scanning Endpoints..." << std::endl;
-        for(int i=0; i<config->bNumInterfaces; i++) {
-            const libusb_interface_descriptor *inter = &config->interface[i].altsetting[0];
-            for(int j=0; j<inter->bNumEndpoints; j++) {
-                const libusb_endpoint_descriptor *ep = &inter->endpoint[j];
-                std::cout << "   -> Interface " << i << " | Endpoint: 0x" << std::hex << (int)ep->bEndpointAddress;
-                
-                if((ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
-                    std::cout << " (IN/READ)";
-                     if((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) == LIBUSB_TRANSFER_TYPE_BULK) {
-                        std::cout << " [BULK] <- FOUND IN";
-                        if (bulk_in_endpoint == 0) {
-                             bulk_in_endpoint = ep->bEndpointAddress;
-                        }
-                    }
-                } else {
-                    std::cout << " (OUT/WRITE)";
-                    if((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) == LIBUSB_TRANSFER_TYPE_BULK) {
-                        std::cout << " [BULK] <- FOUND OUT";
-                        if (bulk_out_endpoint == 0) { // Take the first one we find
-                            bulk_out_endpoint = ep->bEndpointAddress;
-                            // We assume IN/OUT are on the same interface usually
-                            target_interface = i;
-                        }
-                    }
+        const libusb_interface_descriptor *inter = &config->interface[interface_idx].altsetting[0];
+        
+        // Scan Endpoints ONLY for this interface
+        for(int j=0; j<inter->bNumEndpoints; j++) {
+            const libusb_endpoint_descriptor *ep = &inter->endpoint[j];
+            
+            if((ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
+                 if((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) == LIBUSB_TRANSFER_TYPE_BULK) {
+                    if (bulk_in_endpoint == 0) bulk_in_endpoint = ep->bEndpointAddress;
                 }
-                std::cout << std::endl;
+            } else {
+                if((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) == LIBUSB_TRANSFER_TYPE_BULK) {
+                    if (bulk_out_endpoint == 0) bulk_out_endpoint = ep->bEndpointAddress;
+                }
             }
         }
 
-        if (bulk_out_endpoint == 0 || target_interface == -1) {
-            std::cout << "[C++ Real] Could not find any BULK OUT endpoint." << std::endl;
+        std::cout << "   -> Endpoints found: IN=0x" << std::hex << (int)bulk_in_endpoint << " OUT=0x" << (int)bulk_out_endpoint << std::endl;
+
+        if (bulk_out_endpoint == 0 || bulk_in_endpoint == 0) {
+            std::cout << "[C++ Real] Interface " << interface_idx << " is missing required BULK endpoints." << std::endl;
+            libusb_close(dev_handle);
+            dev_handle = NULL;
             return 0;
         }
 
-        std::cout << "[C++ Real] Target Interface: " << target_interface << " | Out Endpoint: 0x" << std::hex << (int)bulk_out_endpoint << " | In Endpoint: 0x" << (int)bulk_in_endpoint << std::endl;
-
-        // 4. Claim the SPECIFIC Interface
-        if(libusb_claim_interface(dev_handle, target_interface) < 0) {
-            std::cout << "[C++ Real] Failed to claim Interface " << target_interface << "." << std::endl;
+        // 4. Claim ONLY this Interface
+        if(libusb_claim_interface(dev_handle, interface_idx) < 0) {
+            std::cout << "[C++ Real] Failed to claim Interface " << interface_idx << "." << std::endl;
+            libusb_close(dev_handle);
+            dev_handle = NULL;
             return 0;
         }
 
-        std::cout << "[C++ Real] Interface " << target_interface << " Claimed Successfully." << std::endl;
+        claimed_interface = interface_idx;
+        std::cout << "[C++ Real] Interface " << interface_idx << " Claimed Successfully." << std::endl;
         return 1; // Success
+    }
+    
+    __declspec(dllexport) void close_device() {
+        if (dev_handle != NULL) {
+            if (claimed_interface != -1) {
+                libusb_release_interface(dev_handle, claimed_interface);
+            }
+            libusb_close(dev_handle);
+            dev_handle = NULL;
+        }
+        // Don't kill ctx, we might want to reconnect
+        bulk_in_endpoint = 0;
+        bulk_out_endpoint = 0;
+        claimed_interface = -1;
+        std::cout << "[C++ Real] Device Closed." << std::endl;
     }
 
     __declspec(dllexport) void send_raw_packet(unsigned char* data, int length, DeviceStatus* status) {
