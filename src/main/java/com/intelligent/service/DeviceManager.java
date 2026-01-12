@@ -25,7 +25,8 @@ public class DeviceManager {
     public boolean sendPacket(byte[] data, DeviceStatus status) {
         // System.out.println("[Manager] Sending " + data.length + " bytes...");
         driver.send_raw_packet(data, data.length, status);
-        return status.statusCode == 200;
+        // C++ returns 0 on success
+        return status.last_error_code == 0;
     }
 
     public byte[] readPacket(int maxLength, DeviceStatus status) {

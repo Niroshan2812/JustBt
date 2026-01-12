@@ -54,10 +54,9 @@ public class SamsungProtocol {
     private String cleanResponse(String raw) {
         if (raw == null)
             return "Failed";
-        // Remove known AT noise: "AT+COMMAND", "OK", "ERROR" and newlines
-        // Example: "AT+GMM\r\r\nSM-M205F\r\n\r\nOK\r\n" -> "SM-M205F"
         String clean = raw.replaceAll("AT\\+[A-Z]+\r\r\n", "") // Remove Echo
                 .replaceAll("AT\\+[A-Z]+\r", "") // Remove Echo variant
+                .replaceAll("\\+CBC: ", "") // Remove Battery Prefix if needed
                 .replaceAll("\r\nOK", "") // Remove OK suffix
                 .replaceAll("\r\nERROR", "") // Remove ERROR suffix
                 .trim();
@@ -71,5 +70,27 @@ public class SamsungProtocol {
         System.out.println("   -> Model:     " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_MODEL)));
         System.out.println("   -> Version:   " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_VERSION)));
         System.out.println("   -> Battery:   " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_BATTERY)));
+    }
+
+    public void rebootToDownload(DeviceManager manager) {
+        System.out.println("\n[SamsungProtocol] Attempting Reboot to Download Mode (Strategy A)...");
+        tryReboot(manager, SamsungDefs.CMD_REBOOT_DOWNLOAD);
+
+        System.out.println("\n[SamsungProtocol] Attempting Strategy B...");
+        tryReboot(manager, SamsungDefs.CMD_REBOOT_ALT_1);
+
+        System.out.println("\n[SamsungProtocol] Attempting Strategy C...");
+        tryReboot(manager, SamsungDefs.CMD_REBOOT_ALT_2);
+    }
+
+    private void tryReboot(DeviceManager manager, byte[] cmd) {
+        String resp = sendCommand(manager, cmd);
+        // Clean display of control chars
+        String debugResp = (resp != null) ? resp.replace("\r", "\\r").replace("\n", "\\n") : "null";
+        System.out.println("   -> Sent Command. Response: " + debugResp);
+
+        if (resp != null && resp.contains("OK")) {
+            System.out.println("   -> Device accepted command. Check screen!");
+        }
     }
 }

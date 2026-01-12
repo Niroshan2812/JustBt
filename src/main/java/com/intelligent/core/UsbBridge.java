@@ -12,12 +12,12 @@ public interface UsbBridge extends Library {
 
     // --- Structures ---
     class DeviceStatus extends Structure {
-        public int statusCode;
+        public int last_error_code;
         public byte[] message = new byte[256];
 
         @Override
         protected List<String> getFieldOrder() {
-            return Arrays.asList("statusCode", "message");
+            return Arrays.asList("last_error_code", "message");
         }
 
         public String getMessageString() {

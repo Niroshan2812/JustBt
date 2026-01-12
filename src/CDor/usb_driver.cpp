@@ -130,11 +130,11 @@ extern "C" {
         int r = libusb_bulk_transfer(dev_handle, bulk_out_endpoint, data, length, &actual_written, 2000);
 
         if(r == 0 && actual_written == length) {
-            status->statusCode = 200;
+            status->statusCode = 0; // Success
             strcpy(status->message, "Packet sent to physical hardware!");
             std::cout << "[C++ Real] Write Success!" << std::endl;
         } else {
-            status->statusCode = 400;
+            status->statusCode = r; // Error Code
             sprintf(status->message, "Write Failed. Error: %d", r);
             std::cout << "[C++ Real] Write Failed (Error Code: " << r << ")" << std::endl;
         }
@@ -142,13 +142,13 @@ extern "C" {
 
     __declspec(dllexport) int read_data(unsigned char* buffer, int maxLength, DeviceStatus* status) {
         if (dev_handle == NULL) {
-             status->statusCode = 500;
+             status->statusCode = -1;
              strcpy(status->message, "No hardware connected.");
              return 0;
         }
 
         if (bulk_in_endpoint == 0) {
-             status->statusCode = 500;
+             status->statusCode = -2;
              strcpy(status->message, "No BULK IN Endpoint found!");
              return 0;
         }
@@ -159,13 +159,13 @@ extern "C" {
         int r = libusb_bulk_transfer(dev_handle, bulk_in_endpoint, buffer, maxLength, &actual_read, 3000); // 3s Timeout
 
         if (r == 0) {
-            status->statusCode = 200;
+            status->statusCode = 0; // Success
             sprintf(status->message, "Read %d bytes successfully", actual_read);
             std::cout << "[C++ Real] Read Success! (" << actual_read << " bytes)" << std::endl;
             return actual_read;
         } else {
              // It is common to time out if device has nothing to say
-             status->statusCode = (r == LIBUSB_ERROR_TIMEOUT) ? 204 : 400;
+             status->statusCode = r;
              sprintf(status->message, "Read Failed/Timeout. Error: %d", r);
              std::cout << "[C++ Real] Read Failed/Timeout (Error Code: " << r << ")" << std::endl;
              return 0;

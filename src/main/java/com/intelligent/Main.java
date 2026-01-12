@@ -9,43 +9,62 @@ public class Main {
         System.out.println("=== Intelligent Mobile Tool v1.0 ===");
 
         DeviceManager manager = new DeviceManager();
-        SamsungProtocol samsung = new SamsungProtocol();
 
-        // PID 6860 is Samsung Normal Mode
-        // VID 0x04E8 = Samsung
-        boolean found = false;
+        // 1. Try Normal Mode (Modem)
+        System.out.println("[Main] Step 1: Scanning for SAMSUNG Modem (Normal Mode)...");
+        boolean modemFound = scanForModem(manager);
 
-        System.out.println("[Main] Starting Interface Scan (Looking for Modem)...");
-
-        for (int i = 0; i < 4; i++) {
-            System.out.println("\n[Main] Trying Interface " + i + "...");
-
-            if (manager.connect(0x04E8, 0x6860, i)) {
-                System.out.println("[Main] Interface " + i + " Connected. Testing Protocol...");
-
-                // Execute the Protocol Logic
-                if (samsung.performModemHandshake(manager)) {
-                    System.out.println("\n[Main] >>> FOUND CORRECT MODEM INTERFACE: " + i + " <<<");
-                    found = true;
-
-                    // --- PHASE 8: READ INFO ---
-                    samsung.readDeviceInfo(manager);
-
-                    // Keep connection open or do further work here
-                    break;
-                } else {
-                    System.out.println("[Main] Handshake Failed on Interface " + i + ". Disconnecting...");
-                    manager.disconnect();
-                }
-            } else {
-                System.out.println("[Main] Failed to claim Interface " + i);
-            }
-        }
-
-        if (!found) {
-            System.out.println("\n[Main] Scan Complete. No responsive Modem interface found.");
+        // 2. If not found, check if already in Download Mode
+        if (!modemFound) {
+            System.out.println("[Main] Step 2: Scanning for SAMSUNG Download Mode (Odin Mode)...");
+            scanForDownloadMode(manager);
         }
 
         System.out.println("=== End of Operation ===");
+    }
+
+    private static boolean scanForModem(DeviceManager manager) {
+        SamsungProtocol samsung = new SamsungProtocol();
+
+        for (int i = 0; i < 4; i++) {
+            // Try connecting to Modem PID 0x6860
+            if (manager.connect(0x04E8, 0x6860, i)) {
+                if (samsung.performModemHandshake(manager)) {
+                    System.out.println("\n[Main] >>> DEVICE FOUND: Normal Mode (Interface " + i + ") <<<");
+
+                    // Action 1: Read Info
+                    samsung.readDeviceInfo(manager);
+
+                    // Action 2: Reboot
+                    samsung.rebootToDownload(manager);
+
+                    manager.disconnect();
+                    return true;
+                }
+                manager.disconnect();
+            }
+        }
+        System.out.println("   -> No Normal Mode device found.");
+        return false;
+    }
+
+    private static void scanForDownloadMode(DeviceManager manager) {
+        // PID 0x685D = Gadget Serial
+
+        for (int i = 0; i < 4; i++) {
+            if (manager.connect(0x04E8, 0x685D, i)) {
+                System.out.println("\n[Main] >>> DEVICE FOUND: Download Mode (Interface " + i + ") <<<");
+                System.out.println("[Main] Ready for Flashing (Low-level connectivity established).");
+
+                // Protocol not fully active yet
+                // com.intelligent.protocols.OdinProtocol odin = new
+                // com.intelligent.protocols.OdinProtocol();
+                // odin.performHandshake(manager);
+
+                manager.disconnect();
+                return;
+            }
+        }
+        System.out.println("   -> No Download Mode device found.");
     }
 }

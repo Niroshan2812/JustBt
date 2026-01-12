@@ -9,7 +9,15 @@ public class SamsungDefs {
     public static final byte[] CMD_READ_BATTERY = "AT+CBC\r".getBytes();
     public static final byte[] CMD_READ_VERSION = "AT+CGMR\r".getBytes();
 
-    // 2. Download Mode Commands (Hex)
-    // Used when phone is in "Odin Mode" (Blue Screen)
-    public static final byte[] CMD_ODIN_HANDSHAKE = new byte[] { (byte) 0x3A, (byte) 0x01, (byte) 0x00 };
+    // 3. Reboot Commands
+    public static final byte[] CMD_REBOOT_DOWNLOAD = "AT+MODE=2\r".getBytes();
+    public static final byte[] CMD_REBOOT_ALT_1 = "AT+REBOOT\r".getBytes();
+    public static final byte[] CMD_REBOOT_ALT_2 = "AT+FUN=5\r".getBytes();
+
+    // 4. Odin Mode Commands (Handshake)
+    // Host sends "ODIN", Device replies "LOKE"
+    public static final byte[] CMD_ODIN_HANDSHAKE = { 0x4F, 0x64, 0x69, 0x6E }; // "ODIN"
+
+    public static final byte[] CMD_PIT_ASCII = "PIT".getBytes();
+    public static final byte[] CMD_PIT_HEX = { (byte) 0x80 };
 }
