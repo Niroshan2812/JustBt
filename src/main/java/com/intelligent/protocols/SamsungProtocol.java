@@ -51,15 +51,25 @@ public class SamsungProtocol {
         return null;
     }
 
+    private String cleanResponse(String raw) {
+        if (raw == null)
+            return "Failed";
+        // Remove known AT noise: "AT+COMMAND", "OK", "ERROR" and newlines
+        // Example: "AT+GMM\r\r\nSM-M205F\r\n\r\nOK\r\n" -> "SM-M205F"
+        String clean = raw.replaceAll("AT\\+[A-Z]+\r\r\n", "") // Remove Echo
+                .replaceAll("AT\\+[A-Z]+\r", "") // Remove Echo variant
+                .replaceAll("\r\nOK", "") // Remove OK suffix
+                .replaceAll("\r\nERROR", "") // Remove ERROR suffix
+                .trim();
+        return clean;
+    }
+
     public void readDeviceInfo(DeviceManager manager) {
         System.out.println("\n[SamsungProtocol] Reading Device Info...");
 
-        String imei = sendCommand(manager, SamsungDefs.CMD_READ_IMEI);
-        System.out.println(
-                "   -> IMEI Response: " + (imei != null ? imei.replace("\r", " ").replace("\n", " ") : "Failed"));
-
-        String model = sendCommand(manager, SamsungDefs.CMD_READ_MODEL);
-        System.out.println(
-                "   -> Model Response: " + (model != null ? model.replace("\r", " ").replace("\n", " ") : "Failed"));
+        System.out.println("   -> IMEI:      " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_IMEI)));
+        System.out.println("   -> Model:     " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_MODEL)));
+        System.out.println("   -> Version:   " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_VERSION)));
+        System.out.println("   -> Battery:   " + cleanResponse(sendCommand(manager, SamsungDefs.CMD_READ_BATTERY)));
     }
 }
