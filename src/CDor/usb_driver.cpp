@@ -171,4 +171,32 @@ extern "C" {
              return 0;
         }
     }
+    __declspec(dllexport) int list_connected_devices(char* buffer, int length) {
+        if (ctx == NULL) {
+             libusb_init(&ctx);
+        }
+        
+        libusb_device **devs;
+        ssize_t cnt = libusb_get_device_list(ctx, &devs);
+        if (cnt < 0) return (int)cnt;
+        
+        std::string result = "";
+        char temp[128];
+        
+        for (ssize_t i = 0; i < cnt; i++) {
+            libusb_device *dev = devs[i];
+            struct libusb_device_descriptor desc;
+            int r = libusb_get_device_descriptor(dev, &desc);
+            if (r < 0) continue;
+
+            sprintf(temp, "VID:%04x PID:%04x\n", desc.idVendor, desc.idProduct);
+            result += temp;
+        }
+
+        libusb_free_device_list(devs, 1);
+        
+        strncpy(buffer, result.c_str(), length - 1);
+        buffer[length - 1] = '\0';
+        return result.length();
+    }
 }

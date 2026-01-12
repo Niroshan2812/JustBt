@@ -19,6 +19,12 @@
             <artifactId>jna</artifactId>
             <version>5.13.0</version>
         </dependency>
+        <!-- Modern UI -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>3.2.5</version>
+        </dependency>
     </dependencies>
 
 </project>

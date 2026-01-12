@@ -10,6 +10,10 @@ public class Main {
 
         DeviceManager manager = new DeviceManager();
 
+        System.out.println("--- USB Diagnostics ---");
+        System.out.println(manager.listDevices());
+        System.out.println("-----------------------");
+
         // 1. Try Normal Mode (Modem)
         System.out.println("[Main] Step 1: Scanning for SAMSUNG Modem (Normal Mode)...");
         boolean modemFound = scanForModem(manager);

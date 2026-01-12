@@ -33,4 +33,6 @@ public interface UsbBridge extends Library {
     void send_raw_packet(byte[] data, int length, DeviceStatus status);
 
     int read_data(byte[] buffer, int maxLength, DeviceStatus status);
+
+    int list_connected_devices(byte[] buffer, int length);
 }

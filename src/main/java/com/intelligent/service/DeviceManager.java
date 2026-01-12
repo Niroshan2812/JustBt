@@ -43,4 +43,13 @@ public class DeviceManager {
             return null;
         }
     }
+
+    public String listDevices() {
+        byte[] buffer = new byte[4096];
+        int len = driver.list_connected_devices(buffer, 4096);
+        if (len > 0) {
+            return new String(buffer, 0, len);
+        }
+        return "No devices found or Driver Error";
+    }
 }
